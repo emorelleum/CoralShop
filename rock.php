@@ -12,8 +12,7 @@ $request = $_SERVER['REQUEST_URI'];
 $queryList = str_ireplace("/",",",$request);
 #echo "\n";
 #echo $queryList;
-#echo "\n";
-
+#echo "\n"; 
 
 $elements = str_getcsv($request,'/');
 
@@ -37,15 +36,22 @@ if(strcasecmp($elements[1],"corals") == 0) {
 	else if($rMethod == "GET") {
 		if(count($elements) == 2 or $elements[2] == "") {
 			header("emitting corals: ",true,200);
-			echo var_dump($data["corals"]) . "\n";
+			foreach(array_keys($data["corals"]) as $label) {
+				echo $label . ":\n";
+				foreach(array_keys($data["corals"][$label]) as $attribute){
+					echo "\t" . $attribute . ": " . $data["corals"][$label][$attribute] . "\n";
+				}
+			}
 		}
 		else{
 			#search for specific coral, see if found
 			$item = $elements[2];
 			if(array_key_exists($item,$data["corals"])) {
 				header("200 coral found",true,200);
-				echo $item . ": " . $data["corals"][$item];
-			}
+				echo $item . ":\n";
+				foreach(array_keys($data["corals"][$item]) as $attribute){
+					echo "\t" . $attribute . ": " . $data["corals"][$item][$attribute] . "\n";
+				}			}
 			else {
 				header("404 coral not found",true,404);
 				echo "404 " . $item . " coral not found\n";
@@ -55,8 +61,33 @@ if(strcasecmp($elements[1],"corals") == 0) {
 	else if ($rMethod == "PUT"){
 		$item = $elements[2];
 		if(!array_key_exists($item,$data["corals"])) {
-			echo '>>>>>>>>>>>>>>>>' . $_POST["price"] . "\n";	
-			$data["corals"][$item] = "29";
+			#This method of getting the input from http://stackoverflow.com/questions/8945879/how-to-get-body-of-a-post-in-php
+			$body = file_get_contents('php://input');
+
+			#if no data is passed, just create
+			if($body == "") {
+				$data["corals"][$item]["No attributes"]="-";
+			}
+			else {
+				#If data is added, should be at 1,3;5,7;etc
+				$info = str_getcsv($body,'"');
+				
+				#If every attribute has a value, info should have num elements divisible by 4
+				if(count($info)%4 == 1) {
+					
+					$index = 1;
+					while($index < count($info)){
+						$data["corals"][$item][$info[$index]] = $info[$index+2];
+						$index = $index + 4;
+					}
+				}
+				else{#malformed request, data cannot be oparsed
+					header("400 Body could not be parsed. Are you using \" characters?",true,400);
+					echo "400 The request could not be parsed. Make sure that each label has a string value, and that the labels and values are enclosed with \" characters\n";
+					#too lazy to restucture program control
+					exit;
+				}
+			}
 			header("201 Successfully Added",true,201);
 			echo "201: Added: " . $item . "\n";
 		}
@@ -75,7 +106,7 @@ if(strcasecmp($elements[1],"corals") == 0) {
 		}
 		else {
 			header("409 the resource could not be deleted",true,409);
-			echo $item . " could not be deleted\n";
+			echo "409 " . $item . " could not be deleted\n";
 		}
 			
 	}
