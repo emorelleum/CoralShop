@@ -1,0 +1,93 @@
+<?php
+$database = fopen("corals.json","r+");
+$rawData = fread($database,filesize("corals.json"));
+$data = json_decode($rawData,true);
+#close the file, we will overwrite it later because it is the laziest way to save updates
+fclose($database);
+
+#echo $data["glossary"]["title"];
+#echo "It worksish\n";
+#echo $_SERVER['REQUEST_URI'];
+$request = $_SERVER['REQUEST_URI']; 
+$queryList = str_ireplace("/",",",$request);
+#echo "\n";
+#echo $queryList;
+#echo "\n";
+
+
+$elements = str_getcsv($request,'/');
+
+#note that elements[0] is blank
+
+if(strcasecmp($elements[1],"corals") == 0) {
+
+	$rMethod = $_SERVER['REQUEST_METHOD'];
+	#URL sanitization
+	if(count($elements) > 3) {
+		if($rMethod == "GET") {
+			header("404 page not found. There are no resources at that address.",true,400);
+			echo "404 page not found\n";
+		}
+		else {
+			header("400 The action could not be performed");
+			echo "400 the action could not be performed\n";
+		}
+	}
+	#If just corals/, print corals
+	else if($rMethod == "GET") {
+		if(count($elements) == 2 or $elements[2] == "") {
+			header("emitting corals: ",true,200);
+			echo var_dump($data["corals"]) . "\n";
+		}
+		else{
+			#search for specific coral, see if found
+			$item = $elements[2];
+			if(array_key_exists($item,$data["corals"])) {
+				header("200 coral found",true,200);
+				echo $item . ": " . $data["corals"][$item];
+			}
+			else {
+				header("404 coral not found",true,404);
+				echo "404 " . $item . " coral not found\n";
+			}
+		}
+	}
+	else if ($rMethod == "PUT"){
+		$item = $elements[2];
+		if(!array_key_exists($item,$data["corals"])) {
+			echo '>>>>>>>>>>>>>>>>' . $_POST["price"] . "\n";	
+			$data["corals"][$item] = "29";
+			header("201 Successfully Added",true,201);
+			echo "201: Added: " . $item . "\n";
+		}
+		else {
+			header("409 The resource already exists",true,409);
+			echo "409: " . $item . " already exists\n";
+		}
+		
+	}
+	else if ($rMethod == "DELETE") {	
+		$item = $elements[2];
+		if(array_key_exists($item, $data["corals"])){
+			unset($data["corals"][$item]);
+			header("201 Successfully deleted",true,201);
+			echo "201: Deleted: " . $item . "\n";
+		}
+		else {
+			header("409 the resource could not be deleted",true,409);
+			echo $item . " could not be deleted\n";
+		}
+			
+	}
+
+}
+else {
+	header("404 Page Not Found: cURL requests to this server must involve /corals/",true,404);
+	echo "404: Requests to this server must start with /corals/\n";
+}
+
+$database = fopen("corals.json","w");
+fwrite($database, json_encode($data));
+fclose($database);
+
+?>
